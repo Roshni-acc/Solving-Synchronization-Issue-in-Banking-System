@@ -3,11 +3,14 @@ from database import db
 from models import User
 from bank import BankAccount
 from werkzeug.security import check_password_hash
+import os 
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bank.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = 'your_secret_key'
+pp.config['SECRET_KEY'] = os.getenv('SECRET_KEY')  # Use the secret key from .env
 
 db.init_app(app)
 

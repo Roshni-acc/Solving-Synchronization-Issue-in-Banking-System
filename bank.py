@@ -19,6 +19,10 @@ class BankAccount:
                 db.session.commit()
             print(f"{self.user.username}'s new balance after deposit: {self.user.balance}")
 
+       # Ensure fresh balance is fetched
+            db.session.refresh(self.user)
+
+
     def withdraw(self, amount):
         if amount > 0:
             with self.lock:
