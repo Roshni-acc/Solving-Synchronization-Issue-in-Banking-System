@@ -10,7 +10,7 @@ load_dotenv()  # Load environment variables from .env
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bank.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-pp.config['SECRET_KEY'] = os.getenv('SECRET_KEY')  # Use the secret key from .env
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')  # Use the secret key from .env
 
 db.init_app(app)
 
@@ -90,17 +90,20 @@ def withdraw():
         return redirect('/login')
 
     amount = float(request.form['amount'])
-    user = User.query.get(session['user_id'])
+    user = db.session.get(User, session['user_id'])
 
     if user:
         account = BankAccount(user)
-        account.withdraw(amount)
+        success = account.withdraw(amount)  # ✅ Capture return value to check if withdrawal was successful
 
-        # Update session
-        session['balance'] = user.balance
-        flash(f'Successfully withdrew ${amount}', 'success')
+        # Update session balance only if withdrawal was successful
+        if success:
+            session['balance'] = user.balance
+        else:
+            flash("❌ Withdrawal failed: Insufficient funds!", "danger")  # Flash error message again
 
     return redirect('/dashboard')
+
 
 
 

@@ -11,7 +11,7 @@
     <div class="container mt-5">
         <h2>Welcome, {{username }}</h2>
         <p><strong>Account Number:</strong> {{account_number }}</p>
-        <p><strong>Balance:</strong> ${{balance }}</p>
+        <p><strong>Balance:</strong> Rs {{balance }}</p>
 
         <form action="/deposit" method="POST">
             <label>Deposit Amount:</label>
@@ -27,5 +27,14 @@
 
         <a href="/logout" class="btn btn-secondary mt-3">Logout</a>
     </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
 </body>
 </html>
