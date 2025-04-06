@@ -3,14 +3,12 @@ from database import db
 from models import User
 from bank import BankAccount
 from werkzeug.security import check_password_hash
-import os 
-from dotenv import load_dotenv
-load_dotenv()  # Load environment variables from .env
+
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bank.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')  # Use the secret key from .env
+app.config['SECRET_KEY'] = 'your_secret_key'
 
 db.init_app(app)
 
@@ -25,33 +23,50 @@ def index():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
+        firstname = request.form['firstname']
+        secondname = request.form['secondname']
+        email = request.form['email']
+        phone_number = request.form['phone_number']
+        gender = request.form['gender']
         password = request.form['password']
+        confirm_password = request.form['confirm_password']
 
-        # Check if user already exists
+        if password != confirm_password:
+            flash('Passwords do not match!', 'danger')
+            return redirect('/register')
+
+        username = firstname + secondname
+
+        # Check for duplicate email or username
+        if User.query.filter_by(email=email).first():
+            flash('Email already registered!', 'danger')
+            return redirect('/register')
+
         if User.query.filter_by(username=username).first():
             flash('Username already exists!', 'danger')
             return redirect('/register')
 
-        # Generate account number
         account_number = User.generate_account_number()
-        user = User(username=username, account_number=account_number)
-        user.set_password(password)
+        user = User(
+            firstname=firstname,
+            secondname=secondname,
+            email=email,
+            phone_number=phone_number,
+            gender=gender,
+            username=username,
+            account_number=account_number
+        )
+        user.set_password(password)  
 
-        # Save to database
         db.session.add(user)
         db.session.commit()
 
-        # Store user info in session (for displaying in the dashboard)
-        session['user_id'] = user.id
-        session['username'] = user.username
-        session['account_number'] = user.account_number
-        session['balance'] = user.balance
-
         flash(f'Registration successful! Your Account Number: {user.account_number}', 'success')
-        return redirect('/dashboard')  # ✅ Redirect to dashboard after registration
+        return redirect('/dashboard')
 
-    return render_template('register.html')  # Show register form
+    return render_template('register.html')
+
+
 
 @app.route('/dashboard')
 def dashboard():
@@ -79,7 +94,7 @@ def deposit():
 
         # Update session
         session['balance'] = user.balance
-        flash(f'Successfully deposited ${amount}', 'success')
+        flash(f'Successfully deposited Rs.{amount}', 'success')
 
     return redirect('/dashboard')
 
@@ -90,17 +105,15 @@ def withdraw():
         return redirect('/login')
 
     amount = float(request.form['amount'])
-    user = db.session.get(User, session['user_id'])
+    user = User.query.get(session['user_id'])
 
     if user:
         account = BankAccount(user)
-        success = account.withdraw(amount)  # ✅ Capture return value to check if withdrawal was successful
+        account.withdraw(amount)
 
-        # Update session balance only if withdrawal was successful
-        if success:
-            session['balance'] = user.balance
-        else:
-            flash("❌ Withdrawal failed: Insufficient funds!", "danger")  # Flash error message again
+        # Update session
+        session['balance'] = user.balance
+        flash(f'Successfully withdrew ${amount}', 'success')
 
     return redirect('/dashboard')
 
@@ -110,27 +123,36 @@ def withdraw():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
+        email = request.form['email']
         password = request.form['password']
 
-        user = User.query.filter_by(username=username).first()
+        # Check if user exists with this email
+        user = User.query.filter_by(email=email).first()
 
-        if user and check_password_hash(user.password_hash, password):
+        if user and user.check_password(password):
+            # Set session variables
             session['user_id'] = user.id
-            session['username'] = user.username
+            session['username'] = user.firstname + " " + user.secondname
             session['account_number'] = user.account_number
-            session['balance'] = user.balance
+            session['balance'] = getattr(user, 'balance', 0)
 
             flash('Login successful!', 'success')
             return redirect('/dashboard')
         else:
-            flash('Invalid username or password', 'danger')
+            flash('Invalid email or password', 'danger')
             return redirect('/login')
 
     return render_template('login.html')
+
+
 
 @app.route('/logout')
 def logout():
     session.clear()  # ✅ Clears all session data
     flash('You have been logged out.', 'info')
     return redirect('/')
+
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
